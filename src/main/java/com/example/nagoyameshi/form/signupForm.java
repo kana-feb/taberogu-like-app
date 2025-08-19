@@ -9,7 +9,7 @@ import org.hibernate.validator.constraints.Length;
 import lombok.Data;
 
 @Data
-public class signupForm {    
+public class SignupForm {    
     @NotBlank(message = "氏名を入力してください。")
     private String name;
     
