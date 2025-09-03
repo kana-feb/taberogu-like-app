@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,9 +25,14 @@ import com.example.nagoyameshi.repository.RestaurantRepository;
 @Service
 public class RestaurantService {
 	   private final RestaurantRepository restaurantRepository;
+	   private final CategoryRestaurantService categoryRestaurantService;
+	   private final RegularHolidayRestaurantService regularHolidayRestaurantService;
+
 	    // 依存性の注入（DI）を行う（コンストラクタインジェクション）
-	   public RestaurantService(RestaurantRepository restaurantRepository) {
+	    public RestaurantService(RestaurantRepository restaurantRepository, CategoryRestaurantService categoryRestaurantService, RegularHolidayRestaurantService regularHolidayRestaurantService) {
 	       this.restaurantRepository = restaurantRepository;
+	       this.categoryRestaurantService = categoryRestaurantService;
+	       this.regularHolidayRestaurantService = regularHolidayRestaurantService;
 	   }
 	
 		// すべての店舗をページングされた状態で取得する (リポジトリにもともと用意されているメソッドを呼び出すだけでOKです)
@@ -52,17 +58,24 @@ public class RestaurantService {
 	   public Restaurant findFirstRestaurantByOrderByIdDesc() {
 	       return restaurantRepository.findFirstByOrderByIdDesc();
 	   }
+	   
+	    // すべての店舗を作成日時が新しい順に並べ替え、ページングされた状態で取得する
+	    public Page<Restaurant> findAllRestaurantsByOrderByCreatedAtDesc(Pageable pageable) {
+	        return restaurantRepository.findAllByOrderByCreatedAtDesc(pageable);
+	    }   
 
 	   
 	   @Transactional
 	   public void createRestaurant(RestaurantRegisterForm restaurantRegisterForm) {
 		   Restaurant restaurant = new Restaurant();
 	       MultipartFile imageFile = restaurantRegisterForm.getImageFile();
+           List<Integer> categoryIds = restaurantRegisterForm.getCategoryIds();//「この店舗にはどのカテゴリを設定したか？」という情報を、フォームから受け取っている
+           List<Integer> regularHolidayIds = restaurantRegisterForm.getRegularHolidayIds();
 	       
 	       if (!imageFile.isEmpty()) { //画像ファイルがある場合
 	    	   String imageName = imageFile.getOriginalFilename();//元の名前を取得
 	           String hashedImageName = generateNewFileName(imageName);//UUIDを使って重複しない別名を生成する（例: 6f1a3b12-xxxx.jpg）
-	           Path filePath = Paths.get("src/main/resources/static/storage/" + hashedImageName);// 保存先パスを指定する（プロジェクトの static/storage/ 配下）
+	           Path filePath = Paths.get("build/resources/main/static/storage/" + hashedImageName);// 保存先パスを指定する（プロジェクトの static/storage/ 配下）
 	           copyImageFile(imageFile, filePath);// 実際に画像ファイルを指定した場所にコピーする
 	           restaurant.setImage(hashedImageName);// Restaurantエンティティの image フィールドに保存したファイル名をセットする
 	       }
@@ -80,12 +93,23 @@ public class RestaurantService {
 
 	       restaurantRepository.save(restaurant);
 
+	       //店舗登録フォームから受け取ったカテゴリID（categoryIds）が null でない場合に、店舗とカテゴリの関連情報を中間テーブルに登録します
+	        if (categoryIds != null) {
+	            categoryRestaurantService.createCategoriesRestaurants(categoryIds, restaurant);
+	        }
+		   
+	        //フォームクラスのregularHolidayIdsフィールドがnullでなければ、サービスクラスに定義したcreateRegularHolidaysRestaurants()メソッドを呼び出し、店舗と定休日の紐づけを行う。
+	        if (regularHolidayIds != null) {
+	        	regularHolidayRestaurantService.createRegularHolidaysRestaurants(regularHolidayIds, restaurant);
+	        }   
    }
 
 	   //引数で受け取ったRestaurantエンティティの各フィールドの値を更新してください。それ以外はcreateRestaurant()メソッドと同様です。
 	   @Transactional
 	   public void updateRestaurant(RestaurantEditForm restaurantEditForm, Restaurant restaurant) {
 	       MultipartFile imageFile = restaurantEditForm.getImageFile();
+	       List<Integer> categoryIds = restaurantEditForm.getCategoryIds();
+	       List<Integer> regularHolidayIds = restaurantEditForm.getRegularHolidayIds();
 
 	       if (!imageFile.isEmpty()) { //画像ファイルがある場合
 	    	   String imageName = imageFile.getOriginalFilename();//元の名前を取得
@@ -108,6 +132,10 @@ public class RestaurantService {
 
 	       //データベースにユーザーを登録します。直前で作ったエンティティを渡すだけで、データベースに新しいデータの追加が可能
 	       restaurantRepository.save(restaurant);
+	       
+           categoryRestaurantService.syncCategoriesRestaurants(categoryIds, restaurant);
+           regularHolidayRestaurantService.syncRegularHolidaysRestaurants(regularHolidayIds, restaurant);
+
 	   }
 
 	   @Transactional
@@ -150,5 +178,7 @@ public class RestaurantService {
 	       return closingTime.isAfter(openingTime);
 	       //isAfter は、Javaの LocalTime クラスに属するメソッドで、ある時刻が別の時刻より後かどうかを判定するために使われます。
 	   }
+	   
+	      
 } 
 	   

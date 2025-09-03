@@ -1,6 +1,7 @@
 package com.example.nagoyameshi.controller;
 
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -20,10 +21,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.example.nagoyameshi.entity.Category;
+import com.example.nagoyameshi.entity.RegularHoliday;
 import com.example.nagoyameshi.entity.Restaurant;
 import com.example.nagoyameshi.form.RestaurantEditForm;
 import com.example.nagoyameshi.form.RestaurantRegisterForm;
-import com.example.nagoyameshi.repository.RestaurantRepository;
+import com.example.nagoyameshi.service.CategoryRestaurantService;
+import com.example.nagoyameshi.service.CategoryService;
+import com.example.nagoyameshi.service.RegularHolidayRestaurantService;
+import com.example.nagoyameshi.service.RegularHolidayService;
 import com.example.nagoyameshi.service.RestaurantService;
 
 @Controller // クラスの頭に付ける
@@ -31,15 +37,28 @@ import com.example.nagoyameshi.service.RestaurantService;
 public class AdminRestaurantController {
 	
     // ==================== フィールド ====================
-    private final RestaurantRepository restaurantRepository;
+    //private final RestaurantRepository restaurantRepository;
     private final RestaurantService restaurantService; // 依存性注入用のサービス
+    private final CategoryService categoryService;
+    private final CategoryRestaurantService categoryRestaurantService;    
+    private final RegularHolidayService regularHolidayService;
+    private final RegularHolidayRestaurantService regularHolidayRestaurantService;    
+
 
     // ==================== コンストラクタ ====================
     // コンストラクタで依存性注入
-    public AdminRestaurantController(RestaurantRepository restaurantRepository,
-                                     RestaurantService restaurantService) {
-        this.restaurantRepository = restaurantRepository;
+    
+    public AdminRestaurantController(RestaurantService restaurantService,
+            CategoryService categoryService,
+            CategoryRestaurantService categoryRestaurantService,
+            RegularHolidayService regularHolidayService,
+            RegularHolidayRestaurantService regularHolidayRestaurantService)
+    {        
         this.restaurantService = restaurantService;
+        this.categoryService = categoryService;
+        this.categoryRestaurantService = categoryRestaurantService;
+        this.regularHolidayService = regularHolidayService;
+        this.regularHolidayRestaurantService = regularHolidayRestaurantService;        
     }
 
     // ==================== レストラン一覧ページ ====================
@@ -53,9 +72,9 @@ public class AdminRestaurantController {
 
         // キーワード検索があれば検索結果をページング
         if (keyword != null && !keyword.isEmpty()) {
-            restaurantPage = restaurantRepository.findByName("%" + keyword + "%", pageable); // 部分一致検索
+            restaurantPage = restaurantService.findRestaurantsByNameLike("%" + keyword + "%", pageable); // 部分一致検索
         } else {
-            restaurantPage = restaurantRepository.findAll(pageable);
+            restaurantPage = restaurantService.findAllRestaurants(pageable);
         }
 
         // 結果をモデルに追加
@@ -90,8 +109,14 @@ public class AdminRestaurantController {
     // ==================== 店舗登録ページ ====================
     @GetMapping("/register")
     public String register(Model model) {
+        List<Category> categories = categoryService.findAllCategories();
+        List<RegularHoliday> regularHolidays = regularHolidayService.findAllRegularHolidays();
+
         // 空のフォームをビューに渡す
         model.addAttribute("restaurantRegisterForm", new RestaurantRegisterForm());
+        model.addAttribute("categories", categories);
+        model.addAttribute("regularHolidays", regularHolidays);
+
         return "admin/restaurants/register";
     }
 
@@ -108,6 +133,7 @@ public class AdminRestaurantController {
             RedirectAttributes redirectAttributes,
             // Model：画面にデータを渡すための入れ物（HTMLに渡すデータを詰める）
             Model model
+            
     ) {
     	
         // フォームから送られてきたデータを一時的に変数に取り出す
@@ -139,8 +165,15 @@ public class AdminRestaurantController {
 
         // --- 入力にエラーがある場合 ---
         if (bindingResult.hasErrors()) {
+            List<Category> categories = categoryService.findAllCategories();
+            List<RegularHoliday> regularHolidays = regularHolidayService.findAllRegularHolidays();
+
             // 入力した内容をフォームに戻すため、もう一度 model に詰める
             model.addAttribute("restaurantRegisterForm", restaurantRegisterForm);
+            model.addAttribute("categories", categories);
+            model.addAttribute("regularHolidays", regularHolidays);
+
+
             // もう一度「店舗登録フォーム」の画面を表示する
             return "admin/restaurants/register";
         }
@@ -170,6 +203,8 @@ public class AdminRestaurantController {
 
         // RestaurantEditForm のフィールドに合わせて初期値を設定
         Restaurant restaurant = optionalRestaurant.get();
+        List<Integer> categoryIds = categoryRestaurantService.findCategoryIdsByRestaurantOrderByIdAsc(restaurant);
+        List<Integer> regularHolidayIds = regularHolidayRestaurantService.findRegularHolidayIdsByRestaurant(restaurant);
         RestaurantEditForm restaurantEditForm = new RestaurantEditForm(
             restaurant.getName(),
             null,
@@ -180,12 +215,17 @@ public class AdminRestaurantController {
             restaurant.getAddress(),
             restaurant.getOpeningTime(),
             restaurant.getClosingTime(),
-            restaurant.getSeatingCapacity()
-        );
-
+            restaurant.getSeatingCapacity(),
+            categoryIds,regularHolidayIds);
+        
+        List<Category> categories = categoryService.findAllCategories();
+        List<RegularHoliday> regularHolidays = regularHolidayService.findAllRegularHolidays();
 
         model.addAttribute("restaurant", restaurant);
         model.addAttribute("restaurantEditForm", restaurantEditForm);
+        model.addAttribute("categories", categories);
+        model.addAttribute("regularHolidays", regularHolidays);
+
 
         return "admin/restaurants/edit";
     }
@@ -224,9 +264,14 @@ public class AdminRestaurantController {
 	}
 	
 	if (bindingResult.hasErrors()) {
-	model.addAttribute("restaurant", restaurant);
-	model.addAttribute("restaurantEditForm", restaurantEditForm);
-	return "admin/restaurants/edit";
+        List<Category> categories = categoryService.findAllCategories();
+        List<RegularHoliday> regularHolidays = regularHolidayService.findAllRegularHolidays();
+        model.addAttribute("restaurant", restaurant);
+        model.addAttribute("restaurantEditForm", restaurantEditForm);
+        model.addAttribute("categories", categories);
+        model.addAttribute("regularHolidays", regularHolidays);
+
+        return "admin/restaurants/edit";
 	}
 	
 	restaurantService.updateRestaurant(restaurantEditForm, restaurant);
@@ -236,7 +281,8 @@ public class AdminRestaurantController {
 
     // ==================== 店舗削除処理 ====================
     @PostMapping("/{id}/delete")
-    public String delete(@PathVariable(name = "id") Integer id, RedirectAttributes redirectAttributes) {        
+    public String delete(@PathVariable(name = "id") Integer id, RedirectAttributes redirectAttributes) { 
+        Optional<Category> optionalCategory = categoryService.findCategoryById(id);
 
         // IDでレストラン情報を取得
         Optional<Restaurant> optionalRestaurant = restaurantService.findRestaurantById(id);
@@ -244,11 +290,13 @@ public class AdminRestaurantController {
         // 存在しない場合はエラーメッセージを表示して一覧ページにリダイレクト
         if (optionalRestaurant.isEmpty()) {
             redirectAttributes.addFlashAttribute("errorMessage", "レストランが存在しません。");
+            
             return "redirect:/admin/restaurants";
         }
         
-        restaurantRepository.deleteById(id); // 指定したIDの店舗を削除
-        redirectAttributes.addFlashAttribute("successMessage", "店舗を削除しました。");
+        Category category = optionalCategory.get();
+        categoryService.deleteCategory(category);
+        redirectAttributes.addFlashAttribute("successMessage", "カテゴリを削除しました。");
         
         return "redirect:/admin/restaurants";
     }

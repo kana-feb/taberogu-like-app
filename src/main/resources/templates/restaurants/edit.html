@@ -5,7 +5,7 @@
 
         <div th:replace="~{fragment :: styles}"></div>
 
-        <title>店舗登録</title>
+        <title>店舗編集</title>
     </head>
     <body>
         <div class="nagoyameshi-wrapper">
@@ -22,15 +22,16 @@
                                     <nav class="mb-4" style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb">
                                         <ol class="breadcrumb mb-0">
                                             <li class="breadcrumb-item"><a th:href="@{/admin/restaurants}">店舗一覧</a></li>
-                                            <li class="breadcrumb-item active" aria-current="page">店舗登録</li>
+                                            <li class="breadcrumb-item"><a th:href="@{/admin/restaurants/__${restaurant.id}__}">店舗詳細</a></li>
+                                            <li class="breadcrumb-item active" aria-current="page">店舗編集</li>
                                         </ol>
                                     </nav>
 
-                                    <h1 class="mb-4 text-center">店舗登録</h1>
+                                    <h1 class="mb-4 text-center">店舗編集</h1>
 
                                     <hr class="mb-4">
 
-                                    <form method="post" th:action="@{/admin/restaurants/create}" th:object="${restaurantRegisterForm}" enctype="multipart/form-data">
+                                    <form method="post" th:action="@{/admin/restaurants/__${restaurant.id}__/update}" th:object="${restaurantEditForm}" enctype="multipart/form-data">
                                         <div class="form-group row mb-3">
                                             <label for="name" class="col-md-5 col-form-label text-md-left fw-bold">店舗名</label>
 
@@ -50,7 +51,8 @@
                                         </div>
 
                                         <!-- 選択された画像の表示場所 -->
-                                        <div class="row" id="imagePreview"></div>
+                                        <div th:if="${restaurant.image}" class="row" id="imagePreview"><img th:src="@{/storage/__${restaurant.image}__}" class="mb-3"></div>
+                                        <div th:unless="${restaurant.image}" class="row" id="imagePreview"></div>
 
                                         <div class="form-group row mb-3">
                                             <label for="description" class="col-md-5 col-form-label text-md-left fw-bold">説明</label>
@@ -70,7 +72,7 @@
                                                     <option value="" hidden>選択してください</option>
                                                     <th:block th:each="i : ${#numbers.sequence(0, 19)}">
                                                         <th:block th:with="lowestPrice=${500 + (500 * i)}">
-                                                            <option th:value="${lowestPrice}" th:selected="${lowestPrice == restaurantRegisterForm.lowestPrice}" th:text="${#numbers.formatInteger(lowestPrice, 1, 'COMMA')} + '円'"></option>
+                                                            <option th:value="${lowestPrice}" th:selected="${lowestPrice == restaurantEditForm.lowestPrice}" th:text="${#numbers.formatInteger(lowestPrice, 1, 'COMMA')} + '円'"></option>
                                                         </th:block>
                                                     </th:block>
                                                 </select>
@@ -86,7 +88,7 @@
                                                     <option value="" hidden>選択してください</option>
                                                     <th:block th:each="i : ${#numbers.sequence(0, 19)}">
                                                         <th:block th:with="highestPrice=${500 + (500 * i)}">
-                                                            <option th:value="${highestPrice}" th:selected="${highestPrice == restaurantRegisterForm.highestPrice}" th:text="${#numbers.formatInteger(highestPrice, 1, 'COMMA')} + '円'"></option>
+                                                            <option th:value="${highestPrice}" th:selected="${highestPrice == restaurantEditForm.highestPrice}" th:text="${#numbers.formatInteger(highestPrice, 1, 'COMMA')} + '円'"></option>
                                                         </th:block>
                                                     </th:block>
                                                 </select>
@@ -121,7 +123,7 @@
                                                     <th:block th:with="startTime=${T(java.time.LocalTime).MIDNIGHT}">
                                                         <th:block th:each="i : ${#numbers.sequence(0, 47)}">
                                                             <th:block th:with="openingTime=${startTime.plusMinutes(i * 30).toString()}">
-                                                                <option th:value="${openingTime}" th:selected="${openingTime == restaurantRegisterForm.openingTime}" th:text="${openingTime}"></option>
+                                                                <option th:value="${openingTime}" th:selected="${openingTime == restaurantEditForm.openingTime}" th:text="${openingTime}"></option>
                                                             </th:block>
                                                         </th:block>
                                                     </th:block>
@@ -139,28 +141,11 @@
                                                     <th:block th:with="startTime=${T(java.time.LocalTime).MIDNIGHT}">
                                                         <th:block th:each="i : ${#numbers.sequence(0, 47)}">
                                                             <th:block th:with="closingTime=${startTime.plusMinutes(i * 30).toString()}">
-                                                                <option th:value="${closingTime}" th:selected="${closingTime == restaurantRegisterForm.closingTime}" th:text="${closingTime}"></option>
+                                                                <option th:value="${closingTime}" th:selected="${closingTime == restaurantEditForm.closingTime}" th:text="${closingTime}"></option>
                                                             </th:block>
                                                         </th:block>
                                                     </th:block>
                                                 </select>
-                                            </div>
-                                        </div>
-
-                                        <div class="form-group row mb-3">
-                                            <label class="col-md-5 col-form-label text-md-left fw-bold">定休日</label>
-
-                                            <div class="col-md-7 d-flex flex-wrap">
-                                                <div class="form-check d-flex align-items-center me-3" th:each="regularHoliday, stat : ${regularHolidays}">
-                                                    <input type="checkbox" class="form-check-input"
-                                                           th:id="${'regularHoliday' + stat.index}"
-                                                           name="regularHolidayIds[]"
-                                                           th:value="${regularHoliday.id}"
-                                                           th:checked="${restaurantRegisterForm.regularHolidayIds != null ? #lists.contains(restaurantRegisterForm.regularHolidayIds, regularHoliday.id) : false}"/>
-                                                    <label class="form-check-label" th:for="${'regularHoliday' + stat.index}">
-                                                        <span class="badge bg-secondary ms-1" th:text="${regularHoliday.day}"></span>
-                                                    </label>
-                                                </div>
                                             </div>
                                         </div>
 
@@ -182,7 +167,7 @@
                                                         <option value="">選択なし</option>
                                                         <div th:each="category : ${categories}">
                                                             <option th:value="${category.id}"
-                                                                    th:selected="${restaurantRegisterForm.categoryIds != null && i < restaurantRegisterForm.categoryIds.size() ? restaurantRegisterForm.categoryIds[i] == category.id : false}"
+                                                                    th:selected="${restaurantEditForm.categoryIds != null && i < restaurantEditForm.categoryIds.size() ? restaurantEditForm.categoryIds[i] == category.id : false}"
                                                                     th:text="${category.name}"></option>
                                                         </div>
                                                     </select>
@@ -193,7 +178,7 @@
                                         <hr class="my-4">
 
                                         <div class="form-group d-flex justify-content-center mb-4">
-                                            <button type="submit" class="btn text-white shadow-sm w-50 nagoyameshi-btn">登録</button>
+                                            <button type="submit" class="btn text-white shadow-sm w-50 nagoyameshi-btn">更新</button>
                                         </div>
                                     </form>
                                 </div>

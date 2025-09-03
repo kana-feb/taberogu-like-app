@@ -65,6 +65,7 @@ public class AdminUserController {
         User user = optionalUser.get();//optional<User>型を変換してからビューに渡す
         //ビューに渡す画面に渡すデータを model に詰める。キー名は "user"、中身はさっき取得した user。
         model.addAttribute("user", user);        
+        
         return "admin/users/show";
     }
 
