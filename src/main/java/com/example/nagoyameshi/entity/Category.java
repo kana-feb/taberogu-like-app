@@ -15,7 +15,7 @@ import jakarta.persistence.Table;
 import lombok.Data;
 
 @Entity
-@Table(name = "restaurants") // テーブル名
+@Table(name = "categories") // テーブル名
 @Data
 public class Category {
 

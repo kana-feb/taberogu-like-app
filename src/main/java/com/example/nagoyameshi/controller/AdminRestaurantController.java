@@ -73,6 +73,7 @@ public class AdminRestaurantController {
         // キーワード検索があれば検索結果をページング
         if (keyword != null && !keyword.isEmpty()) {
             restaurantPage = restaurantService.findRestaurantsByNameLike("%" + keyword + "%", pageable); // 部分一致検索
+        	//restaurantPage = restaurantService.findRestaurantsByNameLike(keyword ,pageable); // 部分一致検索
         } else {
             restaurantPage = restaurantService.findAllRestaurants(pageable);
         }

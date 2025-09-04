@@ -75,7 +75,7 @@ public class RestaurantService {
 	       if (!imageFile.isEmpty()) { //画像ファイルがある場合
 	    	   String imageName = imageFile.getOriginalFilename();//元の名前を取得
 	           String hashedImageName = generateNewFileName(imageName);//UUIDを使って重複しない別名を生成する（例: 6f1a3b12-xxxx.jpg）
-	           Path filePath = Paths.get("build/resources/main/static/storage/" + hashedImageName);// 保存先パスを指定する（プロジェクトの static/storage/ 配下）
+	           Path filePath = Paths.get("src/main/resources/static/storage/" + hashedImageName);// 保存先パスを指定する（プロジェクトの static/storage/ 配下）
 	           copyImageFile(imageFile, filePath);// 実際に画像ファイルを指定した場所にコピーする
 	           restaurant.setImage(hashedImageName);// Restaurantエンティティの image フィールドに保存したファイル名をセットする
 	       }
@@ -92,6 +92,7 @@ public class RestaurantService {
 	       restaurant.setSeatingCapacity(restaurantRegisterForm.getSeatingCapacity());
 
 	       restaurantRepository.save(restaurant);
+	   
 
 	       //店舗登録フォームから受け取ったカテゴリID（categoryIds）が null でない場合に、店舗とカテゴリの関連情報を中間テーブルに登録します
 	        if (categoryIds != null) {
@@ -158,13 +159,14 @@ public class RestaurantService {
 	   }
 
 	   // 送信された画像ファイルを保存先にコピーする処理  画像ファイルを指定したファイルにコピーする
-	   public void copyImageFile(MultipartFile imageFile, Path filePath) {
-	       try {
-	           Files.copy(imageFile.getInputStream(), filePath);
-	       } catch (IOException e) {
-	           e.printStackTrace();
-	       }
-	   }
+       public void copyImageFile(MultipartFile imageFile, Path filePath) {
+           try {
+               Files.createDirectories(filePath.getParent());
+               Files.copy(imageFile.getInputStream(), filePath);
+           } catch (IOException e) {
+               e.printStackTrace();
+           }
+       }
 
 	   // 価格が正しく設定されているかどうかをチェックする
 	   //最高価格が最低価格以上かどうかを比較演算子を使ってチェック
